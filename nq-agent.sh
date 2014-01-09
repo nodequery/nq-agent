@@ -278,7 +278,7 @@ do
 done
 
 # API Request
-wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 60 --post-data "$data_post" https://nodequery.com/api/agent.json
+wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 60 --post-data "$data_post" --no-check-certificate https://nodequery.com/api/agent.json
 
 # Finished
 exit 1
