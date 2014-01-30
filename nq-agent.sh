@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent
 #
-# @version		0.7.1
-# @date			2014-01-09
+# @version		0.7.2
+# @date			2014-01-30
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -18,14 +18,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Agent version
-version="0.7.1"
-
-# Root required
-if [ $(id -u) != "0" ];
-then
-	echo "Error: You need to be root to run the NodeQuery agent."
-	exit 1
-fi
+version="0.7.2"
 
 # Authentication required
 if [ -f /etc/nodequery/nq-auth.log ]

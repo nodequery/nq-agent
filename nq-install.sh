@@ -37,7 +37,16 @@ fi
 # Attempt to delete previous agent
 if [ -f /etc/nodequery/nq-agent.sh ]
 then
-	rm -R /etc/nodequery && (crontab -u root -l | grep -v "/etc/nodequery/nq-agent.sh") | crontab -u root -
+	# Remove agent dir
+	rm -R /etc/nodequery
+
+	# Remove cron entry and user
+	if id -u nodequery >/dev/null 2>&1
+	then
+		(crontab -u nodequery -l | grep -v "/etc/nodequery/nq-agent.sh") | crontab -u nodequery - && userdel nodequery
+	else
+		(crontab -u root -l | grep -v "/etc/nodequery/nq-agent.sh") | crontab -u root -
+	fi
 fi
 
 # Create agent dir
@@ -50,9 +59,15 @@ if [ -f /etc/nodequery/nq-agent.sh ]
 then
 	# Create auth file
 	echo "$1 $2" > /etc/nodequery/nq-auth.log
+	
+	# Create user
+	useradd nodequery -r -U -d /etc/nodequery -s /bin/false
+	
+	# Modify permissions
+	chown -R nodequery:nodequery /etc/nodequery && chmod -R 700 /etc/nodequery
 
 	# Configure cron
-	crontab -u root -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh"; } | crontab -u root -
+	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh"; } | crontab -u nodequery -
 	
 	# Show success
 	echo -e "|\n|   Success: The NodeQuery agent has been installed\n|"
