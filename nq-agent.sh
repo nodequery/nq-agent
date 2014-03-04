@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent
 #
-# @version		0.7.3
-# @date			2014-03-03
+# @version		0.7.4
+# @date			2014-03-04
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -18,7 +18,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Agent version
-version="0.7.3"
+version="0.7.4"
 
 # Authentication required
 if [ -f /etc/nodequery/nq-auth.log ]
@@ -71,7 +71,7 @@ processes=$(prep "$(ps -Al | wc -l)")
 # OS details
 os_kernel=$(prep "$(uname -r)")
 
-if [ -f /etc/*release ]
+if ls /etc/*release > /dev/null 2>&1
 then
 	os_name=$(prep "$(cat /etc/*release | grep '^NAME=\|^DISTRIB_ID=' | awk -F\= '{ print $2 }' | tr -d '"')")
 fi
@@ -81,6 +81,9 @@ then
 	if [ -e /etc/redhat-release ]
 	then
 		os_name=$(prep "$(cat /etc/redhat-release)")
+	elif [ -e /etc/debian_version ]
+	then
+		os_name=$(prep "Debian $(cat /etc/debian_version)")
 	fi
 	
 	if [ -z "$os_name" ]
