@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent
 #
-# @version		0.7.2
-# @date			2014-01-30
+# @version		0.7.3
+# @date			2014-03-03
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -18,7 +18,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Agent version
-version="0.7.2"
+version="0.7.3"
 
 # Authentication required
 if [ -f /etc/nodequery/nq-auth.log ]
@@ -70,7 +70,11 @@ processes=$(prep "$(ps -Al | wc -l)")
 
 # OS details
 os_kernel=$(prep "$(uname -r)")
-os_name=$(prep "$(cat /etc/*release | grep '^NAME=\|^DISTRIB_ID=' | awk -F\= '{ print $2 }' | tr -d '"')")
+
+if [ -f /etc/*release ]
+then
+	os_name=$(prep "$(cat /etc/*release | grep '^NAME=\|^DISTRIB_ID=' | awk -F\= '{ print $2 }' | tr -d '"')")
+fi
 
 if [ -z "$os_name" ]
 then
@@ -115,9 +119,9 @@ for disk_loop in 0 1
 do
 	if [[ $disk_loop == "0" ]]
 	then
-		disk=($(df -B 1 | grep '^/' | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
+		disk=($(df -P -B 1 | grep '^/' | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
 	else
-		disk=($(df -B 1 | grep '^/' | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
+		disk=($(df -P -B 1 | grep '^/' | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
 	fi
 		
 	disk_temp=0
@@ -144,7 +148,7 @@ do
 done
 
 # Disk array
-disk_array=$(prep "$(df -B 1 | grep '^/' | awk '{ print $1" "$2" "$3";" }' | sed -e :a -e '$!N;s/\n/ /;ta')")
+disk_array=$(prep "$(df -P -B 1 | grep '^/' | awk '{ print $1" "$2" "$3";" }' | sed -e :a -e '$!N;s/\n/ /;ta')")
 
 # Network interface
 nic=$(prep "$(ip route get 8.8.8.8 | grep dev | awk -F'dev' '{ print $2 }' | awk '{ print $1 }')")

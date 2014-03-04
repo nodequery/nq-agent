@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent Installation Script
 #
-# @version		1.0.2
-# @date			2014-01-09
+# @version		1.0.3
+# @date			2014-03-03
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -53,7 +53,7 @@ fi
 mkdir -p /etc/nodequery
 
 # Download agent
-echo -e "|   Downloading nq-agent.sh to /etc/nodequery\n|\n|   + $(wget -nv -o /dev/stdout -O /etc/nodequery/nq-agent.sh https://raw.github.com/nodequery/nq-agent/master/nq-agent.sh)"
+echo -e "|   Downloading nq-agent.sh to /etc/nodequery\n|\n|   + $(wget -nv -o /dev/stdout -O /etc/nodequery/nq-agent.sh --no-check-certificate https://raw.github.com/nodequery/nq-agent/master/nq-agent.sh)"
 
 if [ -f /etc/nodequery/nq-agent.sh ]
 then
@@ -61,13 +61,16 @@ then
 	echo "$1 $2" > /etc/nodequery/nq-auth.log
 	
 	# Create user
-	useradd nodequery -r -U -d /etc/nodequery -s /bin/false
+	useradd nodequery -r -d /etc/nodequery -s /bin/false
 	
-	# Modify permissions
+	# Modify user permissions
 	chown -R nodequery:nodequery /etc/nodequery && chmod -R 700 /etc/nodequery
+	
+	# Modify ping permissions
+	chmod +s `type -p ping`
 
 	# Configure cron
-	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh"; } | crontab -u nodequery -
+	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh > /etc/nodequery/nq-cron.log"; } | crontab -u nodequery -
 	
 	# Show success
 	echo -e "|\n|   Success: The NodeQuery agent has been installed\n|"
