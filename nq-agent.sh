@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 #
 # NodeQuery Agent
 #
-# @version		0.7.4
-# @date			2014-03-04
+# @version		0.7.5
+# @date			2014-07-08
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -18,7 +18,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Agent version
-version="0.7.4"
+version="0.7.5"
 
 # Authentication required
 if [ -f /etc/nodequery/nq-auth.log ]
@@ -38,7 +38,7 @@ function prep ()
 # Base64 values
 function base ()
 {
-	echo "$1" | tr -d '\n' | base64 | tr -d '=' | tr -d '\n'
+	echo "$1" | tr -d '\n' | base64 | tr -d '=' | tr -d '\n' | sed 's/\//%2F/g' | sed 's/\+/%2B/g'
 }
 
 # Integer values
@@ -67,6 +67,10 @@ sessions=$(prep "$(who | wc -l)")
 
 # Process count
 processes=$(prep "$(ps -Al | wc -l)")
+
+# Process array
+processes_array="$(ps -e -o uname:12,pcpu,rss,cmd --sort=-pcpu,-pmem --noheaders --width 120)"
+processes_array="$(echo "$processes_array" | grep -v "ps -e -o" | head -n 40 | sed 's/ \+ / /g' | sed '/^$/d' | tr "\n" ";")"
 
 # OS details
 os_kernel=$(prep "$(uname -r)")
@@ -110,12 +114,16 @@ cpu_cores=$(prep "$(($(cat /proc/cpuinfo | grep 'model name' | awk -F\: '{ print
 cpu_freq=$(prep "$(cat /proc/cpuinfo | grep 'cpu MHz' | awk -F\: '{ print $2 }')")
 
 # RAM usage
-ram_total=$(prep "$(free -b | grep 'Mem:' | awk '{ print $2 }')")
-ram_usage=$(prep "$(free -b | grep 'cache:' | awk '{ print $3 }')")
+ram_total=$(prep "$(cat /proc/meminfo | grep MemTotal: | awk '{ print $2 }')")
+ram_usage=$(($ram_total-($(prep "$(cat /proc/meminfo | grep MemFree: | awk '{ print $2 }')")+$(prep "$(cat /proc/meminfo | grep Cached: | awk '{ print $2 }')")+$(prep "$(cat /proc/meminfo | grep Buffers: | awk '{ print $2 }')"))))
+ram_total=$((ram_total*1024))
+ram_usage=$((ram_usage*1024))
 
 # Swap usage
-swap_total=$(prep "$(free -b | grep 'Swap:' | awk '{ print $2 }')")
-swap_usage=$(prep "$(free -b | grep 'Swap:' | awk '{ print $3 }')")
+swap_total=$(prep "$(cat /proc/meminfo | grep SwapTotal: | awk '{ print $2 }')")
+swap_usage=$(($swap_total-$(prep "$(cat /proc/meminfo | grep SwapFree: | awk '{ print $2 }')")))
+swap_total=$((swap_total*1024))
+swap_usage=$((swap_usage*1024))
 
 # Disk usage
 for disk_loop in 0 1
@@ -268,17 +276,10 @@ ping_us=$(prep $(num "$(ping -c 2 -w 2 ping-us.nodequery.com | grep rtt | cut -d
 ping_as=$(prep $(num "$(ping -c 2 -w 2 ping-as.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }')"))
 
 # Build data for post
-data_array=("$version" "$uptime" "$sessions" "$processes" "$os_kernel" "$os_name" "$os_arch" "$cpu_name" "$cpu_cores" "$cpu_freq" "$ram_total" "$ram_usage" "$swap_total" "$swap_usage" "$disk_array" "$disk_total" "$disk_usage" "$nic" "$ipv4" "$ipv6" "$rx" "$tx" "$rx_gap" "$tx_gap" "$load" "$load_cpu" "$load_io" "$ping_eu" "$ping_us" "$ping_as")
-data_post="token=${auth[0]}&secret=${auth[1]}&data="
-IFS=""
+data_post="token=${auth[0]}&data=$(base "$version") $(base "$uptime") $(base "$sessions") $(base "$processes") $(base "$processes_array") $(base "$os_kernel") $(base "$os_name") $(base "$os_arch") $(base "$cpu_name") $(base "$cpu_cores") $(base "$cpu_freq") $(base "$ram_total") $(base "$ram_usage") $(base "$swap_total") $(base "$swap_usage") $(base "$disk_array") $(base "$disk_total") $(base "$disk_usage") $(base "$nic") $(base "$ipv4") $(base "$ipv6") $(base "$rx") $(base "$tx") $(base "$rx_gap") $(base "$tx_gap") $(base "$load") $(base "$load_cpu") $(base "$load_io") $(base "$ping_eu") $(base "$ping_us") $(base "$ping_as")"
 
-for item in ${data_array[*]}
-do
-	data_post="$data_post$(base $item) "
-done
-
-# API Request
-wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 60 --post-data "$data_post" --no-check-certificate https://nodequery.com/api/agent.json
+# API request with automatic termination
+timeout -s KILL 30 wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 25 --post-data "$data_post" --no-check-certificate "https://nodequery.com/api/agent.json"
 
 # Finished
 exit 1
