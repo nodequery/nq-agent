@@ -69,7 +69,7 @@ sessions=$(prep "$(who | wc -l)")
 processes=$(prep "$(ps -Al | wc -l)")
 
 # Process array
-processes_array="$(ps -e -o uname:12,pcpu,rss,cmd --sort=-pcpu,-pmem --noheaders --width 120)"
+processes_array="$(ps -e -o uname:12,pcpu,rss,cmd --sort=-pcpu,-rss --noheaders --width 120)"
 processes_array="$(echo "$processes_array" | grep -v "ps -e -o" | head -n 40 | sed 's/ \+ / /g' | sed '/^$/d' | tr "\n" ";")"
 
 # OS details
