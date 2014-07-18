@@ -2,19 +2,37 @@ NodeQuery Agent
 ===============
 
 The NodeQuery agent collects selected linux server data and sends them to
-our monitoring system for further processing.
+our monitoring system for further processing. All data being collected
+are listed below.
+
+Feel free to contact us for support should you have problems installing
+the agent on your server.
 
 Requirements
 ------------
 
-Most major distributions should already include following requirements. The
-script has been successfully tested with newest versions of CentOS, Ubuntu,
-Debian, Fedora and Arch Linux.
+Most major distributions will already include following requirements.
 
 * coreutils
 * crontab
 * wget
 * ip
+
+Tested Distributions (x64)
+--------------------------
+
+* CentOS 7
+* CentOS 6 (6.0, 6.5)
+* CentOS 5 (5.1, 5.8)
+* Ubuntu 14.04 LTS
+* Ubuntu 12.04 LTS
+* Ubuntu 10.04 LTS
+* Debian 7 (7.0, 7.5)
+* Debian 6
+* Arch Linux (2013.05, 2014.04)
+* Gentoo (2013.11)
+* Slackware (14.1)
+* Fedora 20
 
 Monitored Data
 --------------
@@ -23,6 +41,7 @@ Monitored Data
 * System uptime
 * Session count
 * Process count
+* Process array
 * OS kernel
 * OS name
 * OS architecture
