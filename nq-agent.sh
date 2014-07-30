@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent
 #
-# @version		0.7.6
-# @date			2014-07-18
+# @version		0.7.7
+# @date			2014-07-30
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -18,7 +18,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Agent version
-version="0.7.6"
+version="0.7.7"
 
 # Authentication required
 if [ -f /etc/nodequery/nq-auth.log ]
@@ -66,11 +66,15 @@ uptime=$(prep $(int "$(cat /proc/uptime | awk '{ print $1 }')"))
 sessions=$(prep "$(who | wc -l)")
 
 # Process count
-processes=$(prep "$(ps -Al | wc -l)")
+processes=$(prep "$(ps axc | wc -l)")
 
 # Process array
 processes_array="$(ps axc -o uname:12,pcpu,rss,cmd --sort=-pcpu,-rss --noheaders --width 120)"
 processes_array="$(echo "$processes_array" | grep -v " ps$" | sed 's/ \+ / /g' | sed '/^$/d' | tr "\n" ";")"
+
+# File descriptors
+file_handles=$(prep $(num "$(cat /proc/sys/fs/file-nr | awk '{ print $1 }')"))
+file_handles_limit=$(prep $(num "$(cat /proc/sys/fs/file-nr | awk '{ print $3 }')"))
 
 # OS details
 os_kernel=$(prep "$(uname -r)")
@@ -122,66 +126,37 @@ cpu_freq=$(prep "$(cat /proc/cpuinfo | grep 'cpu MHz' | awk -F\: '{ print $2 }')
 
 if [ -z "$cpu_freq" ]
 then
-	if [ -n "$(command -v lscpu)" ]
-	then
-		cpu_freq=$(prep "$(lscpu | grep 'CPU MHz' | awk -F\: '{ print $2 }')")
-	fi
-	
-	if [ -z "$cpu_freq" ]
-	then
-		cpu_freq="0"
-	fi
+	cpu_freq=$(prep $(num "$(lscpu | grep 'CPU MHz' | awk -F\: '{ print $2 }' | sed -e 's/^ *//g' -e 's/ *$//g')"))
 fi
 
 # RAM usage
-ram_total=$(prep "$(cat /proc/meminfo | grep MemTotal: | awk '{ print $2 } END { if (!NR) print 0 }')")
-ram_free=$(prep "$(cat /proc/meminfo | grep MemFree: | awk '{ print $2 } END { if (!NR) print 0 }')")
-ram_cached=$(prep "$(cat /proc/meminfo | grep Cached: | awk '{ print $2 } END { if (!NR) print 0 }')")
-ram_buffers=$(prep "$(cat /proc/meminfo | grep Buffers: | awk '{ print $2 } END { if (!NR) print 0 }')")
+ram_total=$(prep $(num "$(cat /proc/meminfo | grep MemTotal: | awk '{ print $2 }')"))
+ram_free=$(prep $(num "$(cat /proc/meminfo | grep MemFree: | awk '{ print $2 }')"))
+ram_cached=$(prep $(num "$(cat /proc/meminfo | grep Cached: | awk '{ print $2 }')"))
+ram_buffers=$(prep $(num "$(cat /proc/meminfo | grep Buffers: | awk '{ print $2 }')"))
 ram_usage=$((($ram_total-($ram_free+$ram_cached+$ram_buffers))*1024))
 ram_total=$(($ram_total*1024))
 
 # Swap usage
-swap_total=$(prep "$(cat /proc/meminfo | grep SwapTotal: | awk '{ print $2 } END { if (!NR) print 0 }')")
-swap_free=$(prep "$(cat /proc/meminfo | grep SwapFree: | awk '{ print $2 } END { if (!NR) print 0 }')")
+swap_total=$(prep $(num "$(cat /proc/meminfo | grep SwapTotal: | awk '{ print $2 }')"))
+swap_free=$(prep $(num "$(cat /proc/meminfo | grep SwapFree: | awk '{ print $2 }')"))
 swap_usage=$((($swap_total-$swap_free)*1024))
 swap_total=$(($swap_total*1024))
 
 # Disk usage
-for disk_loop in 0 1
-do
-	if [[ $disk_loop == "0" ]]
-	then
-		disk=($(df -P -B 1 | grep '^/' | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
-	else
-		disk=($(df -P -B 1 | grep '^/' | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/ /;ta'))
-	fi
-		
-	disk_temp=0
-		
-	if [[ ${#disk[@]} != "1" ]]
-	then
-		for i in "${!disk[@]}"
-		do
-			if [[ ${#disk[@]} > "$(($i+1))" ]]
-			then
-				disk_temp=$(($disk_temp+$((${disk[$i]}+${disk[$(($i+1))]}))))
-			fi
-		done
-	else
-		disk_temp=${disk[0]}
-	fi
-	
-	if [[ $disk_loop == "0" ]]
-	then
-		disk_total=$(prep "$disk_temp")
-	else
-		disk_usage=$(prep "$disk_temp")
-	fi
-done
+disk_total=$(prep $(num "$(($(df -P -B 1 | grep '^/' | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
+disk_usage=$(prep $(num "$(($(df -P -B 1 | grep '^/' | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
 
 # Disk array
 disk_array=$(prep "$(df -P -B 1 | grep '^/' | awk '{ print $1" "$2" "$3";" }' | sed -e :a -e '$!N;s/\n/ /;ta' | awk '{ print $0 } END { if (!NR) print "N/A" }')")
+
+# Active connections
+if [ -n "$(command -v ss)" ]
+then
+	connections=$(prep $(num "$(ss -tun | tail -n +2 | wc -l)"))
+else
+	connections=$(prep $(num "$(netstat -tun | tail -n +3 | wc -l)"))
+fi
 
 # Network interface
 nic=$(prep "$(ip route get 8.8.8.8 | grep dev | awk -F'dev' '{ print $2 }' | awk '{ print $1 }')")
@@ -197,11 +172,11 @@ ipv6=$(prep "$(ip addr show $nic | grep 'inet6 ' | awk '{ print $2 }' | awk -F\/
 
 if [ -d /sys/class/net/$nic/statistics ]
 then
-	rx=$(prep "$(cat /sys/class/net/$nic/statistics/rx_bytes | awk '{ print $0 } END { if (!NR) print "0" }')")
-	tx=$(prep "$(cat /sys/class/net/$nic/statistics/tx_bytes | awk '{ print $0 } END { if (!NR) print "0" }')")
+	rx=$(prep $(num "$(cat /sys/class/net/$nic/statistics/rx_bytes)"))
+	tx=$(prep $(num "$(cat /sys/class/net/$nic/statistics/tx_bytes)"))
 else
-	rx=$(prep "$(ip -s link show $nic | grep '[0-9]*' | grep -v '[A-Za-z]' | awk '{ print $1 }' | sed -n '1 p' | awk '{ print $0 } END { if (!NR) print "0" }')")
-	tx=$(prep "$(ip -s link show $nic | grep '[0-9]*' | grep -v '[A-Za-z]' | awk '{ print $1 }' | sed -n '2 p' | awk '{ print $0 } END { if (!NR) print "0" }')")
+	rx=$(prep $(num "$(ip -s link show $nic | grep '[0-9]*' | grep -v '[A-Za-z]' | awk '{ print $1 }' | sed -n '1 p')"))
+	tx=$(prep $(num "$(ip -s link show $nic | grep '[0-9]*' | grep -v '[A-Za-z]' | awk '{ print $1 }' | sed -n '2 p')"))
 fi
 
 # Average system load
@@ -213,10 +188,6 @@ stat=($(cat /proc/stat | head -n1 | sed 's/[^0-9 ]*//g' | sed 's/^ *//'))
 cpu=$((${stat[0]}+${stat[1]}+${stat[2]}+${stat[3]}))
 io=$((${stat[3]}+${stat[4]}))
 idle=${stat[3]}
-rx_gap="0"
-tx_gap="0"
-load_cpu="0"
-load_io="0"
 
 if [ -e /etc/nodequery/nq-data.log ]
 then
@@ -251,18 +222,18 @@ fi
 echo "$time $cpu $io $idle $rx $tx" > /etc/nodequery/nq-data.log
 
 # Prepare load variables
-rx_gap=$(prep "$rx_gap")
-tx_gap=$(prep "$tx_gap")
-load_cpu=$(prep "$load_cpu")
-load_io=$(prep "$load_io")
+rx_gap=$(prep $(num "$rx_gap"))
+tx_gap=$(prep $(num "$tx_gap"))
+load_cpu=$(prep $(num "$load_cpu"))
+load_io=$(prep $(num "$load_io"))
 
 # Get network latency
-ping_eu=$(prep $(num "$(ping -c 2 -w 2 ping-eu.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 } END { if (!NR) print "0" }')"))
-ping_us=$(prep $(num "$(ping -c 2 -w 2 ping-us.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 } END { if (!NR) print "0" }')"))
-ping_as=$(prep $(num "$(ping -c 2 -w 2 ping-as.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 } END { if (!NR) print "0" }')"))
+ping_eu=$(prep $(num "$(ping -c 2 -w 2 ping-eu.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }')"))
+ping_us=$(prep $(num "$(ping -c 2 -w 2 ping-us.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }')"))
+ping_as=$(prep $(num "$(ping -c 2 -w 2 ping-as.nodequery.com | grep rtt | cut -d'/' -f4 | awk '{ print $3 }')"))
 
 # Build data for post
-data_post="token=${auth[0]}&data=$(base "$version") $(base "$uptime") $(base "$sessions") $(base "$processes") $(base "$processes_array") $(base "$os_kernel") $(base "$os_name") $(base "$os_arch") $(base "$cpu_name") $(base "$cpu_cores") $(base "$cpu_freq") $(base "$ram_total") $(base "$ram_usage") $(base "$swap_total") $(base "$swap_usage") $(base "$disk_array") $(base "$disk_total") $(base "$disk_usage") $(base "$nic") $(base "$ipv4") $(base "$ipv6") $(base "$rx") $(base "$tx") $(base "$rx_gap") $(base "$tx_gap") $(base "$load") $(base "$load_cpu") $(base "$load_io") $(base "$ping_eu") $(base "$ping_us") $(base "$ping_as")"
+data_post="token=${auth[0]}&data=$(base "$version") $(base "$uptime") $(base "$sessions") $(base "$processes") $(base "$processes_array") $(base "$file_handles") $(base "$file_handles_limit") $(base "$os_kernel") $(base "$os_name") $(base "$os_arch") $(base "$cpu_name") $(base "$cpu_cores") $(base "$cpu_freq") $(base "$ram_total") $(base "$ram_usage") $(base "$swap_total") $(base "$swap_usage") $(base "$disk_array") $(base "$disk_total") $(base "$disk_usage") $(base "$connections") $(base "$nic") $(base "$ipv4") $(base "$ipv6") $(base "$rx") $(base "$tx") $(base "$rx_gap") $(base "$tx_gap") $(base "$load") $(base "$load_cpu") $(base "$load_io") $(base "$ping_eu") $(base "$ping_us") $(base "$ping_as")"
 
 # API request with automatic termination
 if [ -n "$(command -v timeout)" ]

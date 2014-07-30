@@ -2,8 +2,8 @@
 #
 # NodeQuery Agent Installation Script
 #
-# @version		1.0.5
-# @date			2014-07-18
+# @version		1.0.6
+# @date			2014-07-30
 # @copyright	(c) 2014 http://nodequery.com
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -147,7 +147,7 @@ then
 	chmod +s `type -p ping`
 
 	# Configure cron
-	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh > /etc/nodequery/nq-cron.log"; } | crontab -u nodequery -
+	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh > /etc/nodequery/nq-cron.log 2>&1"; } | crontab -u nodequery -
 	
 	# Show success
 	echo -e "|\n|   Success: The NodeQuery agent has been installed\n|"

@@ -42,6 +42,8 @@ Monitored Data
 * Session count
 * Process count
 * Process array
+* File handle count
+* File handle limit
 * OS kernel
 * OS name
 * OS architecture
@@ -55,6 +57,7 @@ Monitored Data
 * Disk array
 * Disk total
 * Disk usage
+* Connection count
 * NIC identifier
 * IPv4 address
 * IPv6 address
