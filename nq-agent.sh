@@ -130,16 +130,16 @@ then
 fi
 
 # RAM usage
-ram_total=$(prep $(num "$(cat /proc/meminfo | grep MemTotal: | awk '{ print $2 }')"))
-ram_free=$(prep $(num "$(cat /proc/meminfo | grep MemFree: | awk '{ print $2 }')"))
-ram_cached=$(prep $(num "$(cat /proc/meminfo | grep Cached: | awk '{ print $2 }')"))
-ram_buffers=$(prep $(num "$(cat /proc/meminfo | grep Buffers: | awk '{ print $2 }')"))
+ram_total=$(prep $(num "$(cat /proc/meminfo | grep ^MemTotal: | awk '{ print $2 }')"))
+ram_free=$(prep $(num "$(cat /proc/meminfo | grep ^MemFree: | awk '{ print $2 }')"))
+ram_cached=$(prep $(num "$(cat /proc/meminfo | grep ^Cached: | awk '{ print $2 }')"))
+ram_buffers=$(prep $(num "$(cat /proc/meminfo | grep ^Buffers: | awk '{ print $2 }')"))
 ram_usage=$((($ram_total-($ram_free+$ram_cached+$ram_buffers))*1024))
 ram_total=$(($ram_total*1024))
 
 # Swap usage
-swap_total=$(prep $(num "$(cat /proc/meminfo | grep SwapTotal: | awk '{ print $2 }')"))
-swap_free=$(prep $(num "$(cat /proc/meminfo | grep SwapFree: | awk '{ print $2 }')"))
+swap_total=$(prep $(num "$(cat /proc/meminfo | grep ^SwapTotal: | awk '{ print $2 }')"))
+swap_free=$(prep $(num "$(cat /proc/meminfo | grep ^SwapFree: | awk '{ print $2 }')"))
 swap_usage=$((($swap_total-$swap_free)*1024))
 swap_total=$(($swap_total*1024))
 
