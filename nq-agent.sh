@@ -149,7 +149,7 @@ disk_total=$(prep $(num "$(($(echo "$disk_info" | awk '{ print $2 }' | sed -e :a
 disk_usage=$(prep $(num "$(($(echo "$disk_info" | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
 
 # Disk array
-disk_array=$(prep "$(echo "$disk_info" | sed -e :a -e '$!N;s/\n/ /;ta' | awk '{ print $0 } END { if (!NR) print "N/A" }')")
+disk_array=$(prep "$(echo "$disk_info" | awk '{ print $0";" }' | sed -e :a -e '$!N;s/\n/ /;ta' | awk '{ print $0 } END { if (!NR) print "N/A" }')")
 
 # Active connections
 if [ -n "$(command -v ss)" ]
