@@ -144,11 +144,12 @@ swap_usage=$((($swap_total-$swap_free)*1024))
 swap_total=$(($swap_total*1024))
 
 # Disk usage
-disk_total=$(prep $(num "$(($(df -P -B 1 | grep '^/' | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
-disk_usage=$(prep $(num "$(($(df -P -B 1 | grep '^/' | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
+disk_info="$(df -P -B 1 | grep '^/' | awk '{ print $1" "$2" "$3 }' | sort | uniq)"
+disk_total=$(prep $(num "$(($(echo "$disk_info" | awk '{ print $2 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
+disk_usage=$(prep $(num "$(($(echo "$disk_info" | awk '{ print $3 }' | sed -e :a -e '$!N;s/\n/+/;ta')))"))
 
 # Disk array
-disk_array=$(prep "$(df -P -B 1 | grep '^/' | awk '{ print $1" "$2" "$3";" }' | sed -e :a -e '$!N;s/\n/ /;ta' | awk '{ print $0 } END { if (!NR) print "N/A" }')")
+disk_array=$(prep "$(echo "$disk_info" | awk '{ print $0";" }' | sed -e :a -e '$!N;s/\n/ /;ta' | awk '{ print $0 } END { if (!NR) print "N/A" }')")
 
 # Active connections
 if [ -n "$(command -v ss)" ]
@@ -189,9 +190,9 @@ cpu=$((${stat[0]}+${stat[1]}+${stat[2]}+${stat[3]}))
 io=$((${stat[3]}+${stat[4]}))
 idle=${stat[3]}
 
-if [ -e /etc/nodequery/nq-data.log ]
+if [ -e /var/log/nodequery/nq-data.log ]
 then
-	data=($(cat /etc/nodequery/nq-data.log))
+	data=($(cat /var/log/nodequery/nq-data.log))
 	interval=$(($time-${data[0]}))
 	cpu_gap=$(($cpu-${data[1]}))
 	io_gap=$(($io-${data[2]}))
@@ -219,7 +220,7 @@ then
 fi
 
 # System load cache
-echo "$time $cpu $io $idle $rx $tx" > /etc/nodequery/nq-data.log
+echo "$time $cpu $io $idle $rx $tx" > /var/log/nodequery/nq-data.log
 
 # Prepare load variables
 rx_gap=$(prep $(num "$rx_gap"))
@@ -238,9 +239,9 @@ data_post="token=${auth[0]}&data=$(base "$version") $(base "$uptime") $(base "$s
 # API request with automatic termination
 if [ -n "$(command -v timeout)" ]
 then
-	timeout -s SIGKILL 30 wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 25 --post-data "$data_post" --no-check-certificate "https://nodequery.com/api/agent.json"
+	timeout -s SIGKILL 30 wget -q -o /dev/null -O /var/log/nodequery/nq-agent.log -T 25 --post-data "$data_post" --no-check-certificate "https://nodequery.com/api/agent.json"
 else
-	wget -q -o /dev/null -O /etc/nodequery/nq-agent.log -T 25 --post-data "$data_post" --no-check-certificate "https://nodequery.com/api/agent.json"
+	wget -q -o /dev/null -O /var/log/nodequery/nq-agent.log -T 25 --post-data "$data_post" --no-check-certificate "https://nodequery.com/api/agent.json"
 	wget_pid=$! 
 	wget_counter=0
 	wget_timeout=30
