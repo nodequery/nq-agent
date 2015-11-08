@@ -17,22 +17,37 @@
 # Set environment
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Helper Functions
+function printRed() {
+	echo -e "\e[31m${*}\e[0m"
+}
+
+function printGreen() {
+	printf "\e[32m${1}\e[0m"
+}
+
+function printBold() {
+	printf "\033[1m${1}\033[0m"
+}
+
+function fail() {
+  printRed $1
+  exit 1
+}
+
 # Prepare output
-echo -e "|\n|   NodeQuery Installer\n|   ===================\n|"
+printBold "|\n| NodeQuery Installer\n| ===================\n"
 
 # Root required
 if [ $(id -u) != "0" ];
 then
-	echo -e "|   Error: You need to be root to install the NodeQuery agent\n|"
-	echo -e "|          The agent itself will NOT be running as root but instead under its own non-privileged user\n|"
-	exit 1
+	fail "|\n| Error: You need to be root to install the NodeQuery agent\n|\tThe agent itself will NOT be running as root but instead under its own non-privileged user\n|"
 fi
 
 # Parameters required
 if [ $# -lt 1 ]
 then
-	echo -e "|   Usage: bash $0 'token'\n|"
-	exit 1
+	fail "|\n| Usage: bash $0 'token'\n|"
 fi
 
 # Check if crontab is installed
@@ -40,74 +55,84 @@ if [ ! -n "$(command -v crontab)" ]
 then
 
 	# Confirm crontab installation
-	echo "|" && read -p "|   Crontab is required and could not be found. Do you want to install it? [Y/n] " input_variable_install
+	echo "|" && read -p "| Crontab is required and could not be found. Do you want to install it? [Y/n] " input_variable_install
 
 	# Attempt to install crontab
 	if [ -z $input_variable_install ] || [ $input_variable_install == "Y" ] || [ $input_variable_install == "y" ]
 	then
 		if [ -n "$(command -v apt-get)" ]
 		then
-			echo -e "|\n|   Notice: Installing required package 'cron' via 'apt-get'"
+			printBold "| Notice: Installing required package 'cron' via 'apt-get': "
+			(
 		    apt-get -y update
 		    apt-get -y install cron
+			) > /dev/null && printGreen "OK" || fail "FAIL"
 		elif [ -n "$(command -v yum)" ]
 		then
-			echo -e "|\n|   Notice: Installing required package 'cronie' via 'yum'"
-		    yum -y install cronie
-		    
-		    if [ ! -n "$(command -v crontab)" ]
-		    then
-		    	echo -e "|\n|   Notice: Installing required package 'vixie-cron' via 'yum'"
-		    	yum -y install vixie-cron
-		    fi
+			printBold "| Notice: Installing required package 'cron' via 'yum': "
+		  yum -y install cronie
+
+		  if [ ! -n "$(command -v crontab)" ]
+		  then
+				printBold "| Notice: Installing required package 'vixie-cron' via 'yum': "
+				(
+		  		yum -y install vixie-cron
+				) > /dev/null && printGreen "OK" || fail "FAIL"
+		  fi
 		elif [ -n "$(command -v pacman)" ]
 		then
-			echo -e "|\n|   Notice: Installing required package 'cronie' via 'pacman'"
-		    pacman -S --noconfirm cronie
+			printBold "| Notice: Installing required package 'cronie' via 'pacman': "
+			(
+		  	pacman -S --noconfirm cronie
+			) > /dev/null && printGreen "OK" || fail "FAIL"
 		fi
 	fi
-	
+
 	if [ ! -n "$(command -v crontab)" ]
 	then
-	    # Show error
-	    echo -e "|\n|   Error: Crontab is required and could not be installed\n|"
-	    exit 1
-	fi	
+    # Show error
+    fail "|\tError: Crontab is required and could not be installed\n"
+	fi
 fi
 
 # Check if cron is running
 if [ -z "$(ps -Al | grep cron | grep -v grep)" ]
 then
-	
+
 	# Confirm cron service
-	echo "|" && read -p "|   Cron is available but not running. Do you want to start it? [Y/n] " input_variable_service
+	echo "|" && read -p "| Cron is available but not running. Do you want to start it? [Y/n] " input_variable_service
 
 	# Attempt to start cron
 	if [ -z $input_variable_service ] || [ $input_variable_service == "Y" ] || [ $input_variable_service == "y" ]
 	then
 		if [ -n "$(command -v apt-get)" ]
 		then
-			echo -e "|\n|   Notice: Starting 'cron' via 'service'"
-			service cron start
+			printBold "| Notice: Starting 'cron' via 'service': "
+			(
+				service cron start
+			) > /dev/null && printGreen "OK" || fail "FAIL"
 		elif [ -n "$(command -v yum)" ]
 		then
-			echo -e "|\n|   Notice: Starting 'crond' via 'service'"
-			chkconfig crond on
-			service crond start
+			printBold "| Notice: Starting 'crond' via 'service': "
+			(
+				chkconfig crond on
+				service crond start
+			) > /dev/null && printGreen "OK" || fail "FAIL"
 		elif [ -n "$(command -v pacman)" ]
 		then
-			echo -e "|\n|   Notice: Starting 'cronie' via 'systemctl'"
+			printBold "| Notice: Starting 'cronie' via 'systemctl': "
+			(
 		    systemctl start cronie
 		    systemctl enable cronie
+			) > /dev/null && printGreen "OK" || fail "FAIL"
 		fi
 	fi
-	
+
 	# Check if cron was started
 	if [ -z "$(ps -Al | grep cron | grep -v grep)" ]
 	then
 		# Show error
-		echo -e "|\n|   Error: Cron is available but could not be started\n|"
-		exit 1
+		fail "|\tError: Cron is available but could not be started\n"
 	fi
 fi
 
@@ -130,28 +155,30 @@ fi
 mkdir -p /etc/nodequery
 
 # Download agent
-echo -e "|   Downloading nq-agent.sh to /etc/nodequery\n|\n|   + $(wget -nv -o /dev/stdout -O /etc/nodequery/nq-agent.sh --no-check-certificate https://raw.github.com/nodequery/nq-agent/master/nq-agent.sh)"
+printBold "\n| Downloading nq-agent.sh to /etc/nodequery\n|\n|   + $(wget -nv -o /dev/stdout -O /etc/nodequery/nq-agent.sh --no-check-certificate https://raw.github.com/nodequery/nq-agent/master/nq-agent.sh)\n"
 
 if [ -f /etc/nodequery/nq-agent.sh ]
 then
 	# Create auth file
 	echo "$1" > /etc/nodequery/nq-auth.log
-	
+
 	# Create user
 	useradd nodequery -r -d /etc/nodequery -s /bin/false
-	
+
 	# Modify user permissions
 	chown -R nodequery:nodequery /etc/nodequery && chmod -R 700 /etc/nodequery
-	
+
 	# Modify ping permissions
 	chmod +s `type -p ping`
 
 	# Configure cron
 	crontab -u nodequery -l 2>/dev/null | { cat; echo "*/3 * * * * bash /etc/nodequery/nq-agent.sh > /etc/nodequery/nq-cron.log 2>&1"; } | crontab -u nodequery -
-	
+
 	# Show success
-	echo -e "|\n|   Success: The NodeQuery agent has been installed\n|"
-	
+	printBold "| ================================================\n"
+	printGreen "| Success: The NodeQuery agent has been installed\n"
+	printBold "| ================================================\n"
+
 	# Attempt to delete installation script
 	if [ -f $0 ]
 	then
@@ -159,5 +186,5 @@ then
 	fi
 else
 	# Show error
-	echo -e "|\n|   Error: The NodeQuery agent could not be installed\n|"
+	fail "\tError: The NodeQuery agent could not be installed\n"
 fi
