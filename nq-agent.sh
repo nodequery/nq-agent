@@ -255,4 +255,4 @@ else
 fi
 
 # Finished
-exit 1
+exit 0
