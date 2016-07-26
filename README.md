@@ -24,6 +24,7 @@ Tested Distributions (x64)
 * CentOS 7
 * CentOS 6 (6.0, 6.5)
 * CentOS 5 (5.1, 5.8)
+* Ubuntu 16.04 LTS
 * Ubuntu 14.04 LTS
 * Ubuntu 12.04 LTS
 * Ubuntu 10.04 LTS
